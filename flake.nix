@@ -41,6 +41,7 @@
           fabricServers = callPackage ./pkgs/fabric-servers { inherit vanillaServers; };
           quiltServers = callPackage ./pkgs/quilt-servers { inherit vanillaServers; };
           legacyFabricServers = callPackage ./pkgs/legacy-fabric-servers { inherit vanillaServers; };
+          neoForgeServers = callPackage ./pkgs/neoforge-servers { inherit vanillaServers; };
           paperServers = callPackage ./pkgs/paper-servers { inherit vanillaServers; };
           velocityServers = callPackage ./pkgs/velocity-servers { };
           minecraftServers =
@@ -49,6 +50,7 @@
           vanilla-server = vanillaServers.vanilla;
           fabric-server = fabricServers.fabric;
           quilt-server = quiltServers.quilt;
+          neoforge-server = neoForgeServers.neoforge;
           paper-server = paperServers.paper;
           velocity-server = velocityServers.velocity;
           minecraft-server = vanilla-server;
