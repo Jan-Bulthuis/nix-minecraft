@@ -7,6 +7,7 @@
   stdenvNoCC,
   loader,
   loaderVersion,
+  gameVersion,
   minecraft-server,
   jre_headless,
   extraJavaArgs ? "",
@@ -14,11 +15,9 @@
 }:
 
 let
-  lib_lock = lib.importJSON ./libraries.json;
-  installer = fetchurl { inherit (loader) url sha256; };
-  libraries = loader.libraries;
-  fetchLibrary = library: fetchurl lib_lock.${library};
-  installerDependencies = lib.importJSON "${
+  installer = fetchurl { inherit (loader.installer) url sha256; };
+  mappings = fetchurl { inherit (loader.mappings) url sha1; };
+  installerProfile = lib.importJSON "${
     pkgs.stdenvNoCC.mkDerivation rec {
       name = "${pname}-${version}";
       pname = "neoforge-installer-dependencies";
@@ -35,12 +34,11 @@ let
       unpackPhase = ''
         cp $src ./installer.zip
         unzip -o ./installer.zip install_profile.json
-        cat install_profile.json | jq ".libraries" > dependencies.json
       '';
 
       installPhase = ''
         mkdir $out
-        cp dependencies.json $out/dependencies.json
+        cp install_profile.json $out/install_profile.json
       '';
 
       phases = [
@@ -48,42 +46,8 @@ let
         "installPhase"
       ];
     }
-  }/dependencies.json";
-  librariesScript = lib.concatStringsSep "\n" (
-    map (
-      library:
-      let
-        parts = lib.splitString ":" library;
-        domain = lib.head parts;
-        artifact = lib.tail parts;
-        artifactName = lib.head artifact;
-        artifactVersion = lib.head (lib.tail artifact);
-        artifactVariant = if (lib.length artifact) > 2 then lib.last artifact else null;
-        path =
-          "./install/libraries/"
-          + lib.concatStringsSep "/" [
-            (lib.replaceStrings [ "." ] [ "/" ] domain)
-            artifactName
-            artifactVersion
-          ];
-        fileName =
-          lib.concatStringsSep "-" (
-            [
-              artifactName
-              artifactVersion
-            ]
-            ++ lib.optional (artifactVariant != null) artifactVariant
-          )
-          + ".jar";
-        filePath = path + "/" + fileName;
-        file = fetchLibrary library;
-      in
-      ''
-        mkdir -p ${path}
-        cp ${file} ${filePath}
-      ''
-    ) libraries
-  );
+  }/install_profile.json";
+  installerDependencies = installerProfile.libraries;
   installerLibrariesScript = lib.concatStringsSep "\n" (
     map (
       library:
@@ -115,22 +79,18 @@ stdenvNoCC.mkDerivation rec {
   ];
 
   buildPhase = ''
-    # mkdir -p ./install/libraries
-    # echo $libraries
-    # for i in ''${!libraries[@]}; do
-    #   echo $i
-    #   # unzip -o $i -d ./install/libraries/
-    # done
-    # false
-    #''${librariesScript}
+    cp ${installer} ./installer.jar
+
     ${installerLibrariesScript}
 
-    mkdir -p ./install/libraries/net/minecraft/server/1.21.1
-    cp ${minecraft-server}/lib/minecraft/server.jar ./install/libraries/net/minecraft/server/1.21.1/server-1.21.1.jar
+    mkdir -p ./maven/minecraft/${gameVersion}
+    cp ${mappings} ./maven/minecraft/${gameVersion}/server_mappings.txt
+    jar -uf ./installer.jar ./maven/minecraft/${gameVersion}/server_mappings.txt
 
-    cp ${installer} ./installer.jar
+    mkdir -p ./install/libraries/net/minecraft/server/${gameVersion}
+    cp ${minecraft-server}/lib/minecraft/server.jar ./install/libraries/net/minecraft/server/${gameVersion}/server-${gameVersion}.jar
+
     java -jar ./installer.jar --help
-    # strace -f -t -e trace=file java -jar ./installer.jar --install-server ./install --offline
     java -jar ./installer.jar --install-server ./install --offline
   '';
 
