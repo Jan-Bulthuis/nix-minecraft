@@ -113,6 +113,7 @@
             vanilla-server
             fabric-server
             quilt-server
+            neoforge-server
             paper-server
             velocity-server
             minecraft-server
