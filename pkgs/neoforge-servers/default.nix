@@ -1,7 +1,7 @@
 {
   lib,
-  vanillaServers,
   mkNeoForgeServer,
+  vanillaServers,
 }:
 
 with lib;
@@ -23,12 +23,22 @@ let
     (mkNeoForgeServer {
       loaderVersion = loaderVersion;
       loader = lock.${loaderVersion};
+      gameVersion = gameVersion;
       minecraft-server = vanillaServers."vanilla-${escapeVersion gameVersion}";
       extraJavaArgs = "";
       extraMinecraftArgs = "";
     });
 
+  loaderVersions = lib.attrNames lock;
+  packagesRaw = lib.genAttrs loaderVersions mkServer;
+  packages = lib.mapAttrs' (
+    version: drv: lib.nameValuePair "neoforge-${escapeVersion version}" drv
+  ) packagesRaw;
+
 in
-lib.recurseIntoAttrs ({
-  neoforge = mkServer latestLoaderVersion;
-})
+lib.recurseIntoAttrs (
+  packages
+  // {
+    neoforge = builtins.getAttr "neoforge-${escapeVersion latestLoaderVersion}" packages;
+  }
+)

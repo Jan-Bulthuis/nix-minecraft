@@ -65,45 +65,68 @@ let
       ''
     ) installerDependencies
   );
-in
-stdenvNoCC.mkDerivation rec {
-  name = "${pname}-${version}";
-  pname = "neoforge-server";
-  version = loaderVersion;
-  nativeBuildInputs = [
-    unzip
-    zip
-    jre_headless
-    pkgs.tree
-    pkgs.strace
-  ];
 
-  buildPhase = ''
-    cp ${installer} ./installer.jar
+  neoForgeServer = stdenvNoCC.mkDerivation rec {
+    name = "${pname}-${version}";
+    pname = "neoforge-server";
+    version = loaderVersion;
+    nativeBuildInputs = [
+      unzip
+      zip
+      jre_headless
+      pkgs.tree
+      pkgs.strace
+    ];
 
-    ${installerLibrariesScript}
+    runScript = ''
+      #!${pkgs.bash}/bin/bash
+      exec ${lib.getExe jre_headless} $@ -jar 
+    '';
 
-    mkdir -p ./maven/minecraft/${gameVersion}
-    cp ${mappings} ./maven/minecraft/${gameVersion}/server_mappings.txt
-    jar -uf ./installer.jar ./maven/minecraft/${gameVersion}/server_mappings.txt
+    buildPhase = ''
+      # Copy the installer
+      cp ${installer} ./installer.jar
 
-    mkdir -p ./install/libraries/net/minecraft/server/${gameVersion}
-    cp ${minecraft-server}/lib/minecraft/server.jar ./install/libraries/net/minecraft/server/${gameVersion}/server-${gameVersion}.jar
+      # Install all libraries required by the installer
+      ${installerLibrariesScript}
 
-    java -jar ./installer.jar --help
-    java -jar ./installer.jar --install-server ./install --offline
-  '';
+      # Add the mappings into the installer Jar
+      mkdir -p ./maven/minecraft/${gameVersion}
+      cp ${mappings} ./maven/minecraft/${gameVersion}/server_mappings.txt
+      jar -uf ./installer.jar ./maven/minecraft/${gameVersion}/server_mappings.txt
 
-  installPhase = ''
-    mkdir $out
-    cp -r . $out
-  '';
+      # Add the server jar to the libraries
+      mkdir -p ./install/libraries/net/minecraft/server/${gameVersion}
+      cp ${minecraft-server}/lib/minecraft/server.jar ./install/libraries/net/minecraft/server/${gameVersion}/server-${gameVersion}.jar
 
-  phases = [
-    "buildPhase"
-    "installPhase"
-  ];
+      # Run the installer
+      java -jar ./installer.jar --install-server ./install --offline
+    '';
 
-  passthru = {
+    installPhase = ''
+      mkdir $out
+      cp -r ./install/** $out/
+    '';
+
+    phases = [
+      "buildPhase"
+      "installPhase"
+    ];
   };
+
+  neoForgeArgs = pkgs.writeText "unix_args.txt" ''
+    -DlibraryDirectory=${neoForgeServer}/libraries
+    cpw.mods.bootstraplauncher.BootstrapLauncher
+    --launchTarget neoforgeserver
+  '';
+in
+# neoForgeServer
+(pkgs.writeShellScriptBin "minecraft-server" ''
+  ln -s ${neoForgeServer}/libraries libraries
+  exec ${lib.getExe jre_headless} ${extraJavaArgs} @libraries/net/neoforged/neoforge/21.4.136/unix_args.txt "$@" ${extraMinecraftArgs}
+'')
+// rec {
+  name = "${pname}-${version}";
+  pname = "minecraft-server";
+  version = "neoforge-${loaderVersion}";
 }
