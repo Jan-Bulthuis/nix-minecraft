@@ -113,17 +113,11 @@ let
       "installPhase"
     ];
   };
-
-  neoForgeArgs = pkgs.writeText "unix_args.txt" ''
-    -DlibraryDirectory=${neoForgeServer}/libraries
-    cpw.mods.bootstraplauncher.BootstrapLauncher
-    --launchTarget neoforgeserver
-  '';
 in
 # neoForgeServer
 (pkgs.writeShellScriptBin "minecraft-server" ''
   ln -s ${neoForgeServer}/libraries libraries
-  exec ${lib.getExe jre_headless} ${extraJavaArgs} @libraries/net/neoforged/neoforge/21.4.136/unix_args.txt "$@" ${extraMinecraftArgs}
+  exec ${lib.getExe jre_headless} ${extraJavaArgs} @libraries/net/neoforged/neoforge/${loaderVersion}/unix_args.txt "$@" ${extraMinecraftArgs}
 '')
 // rec {
   name = "${pname}-${version}";
