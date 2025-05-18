@@ -17,37 +17,42 @@
 let
   installer = fetchurl { inherit (loader.installer) url sha256; };
   mappings = fetchurl { inherit (loader.mappings) url sha1; };
-  installerProfile = lib.importJSON "${
-    pkgs.stdenvNoCC.mkDerivation rec {
-      name = "${pname}-${version}";
-      pname = "neoforge-installer-dependencies";
-      version = loaderVersion;
 
-      src = installer;
+  installerData = pkgs.stdenvNoCC.mkDerivation rec {
+    name = "${pname}-${version}";
+    pname = "neoforge-installer-dependencies";
+    version = loaderVersion;
 
-      nativeBuildInputs = [
-        unzip
-        zip
-        pkgs.jq
-      ];
+    src = installer;
 
-      unpackPhase = ''
-        cp $src ./installer.zip
-        unzip -o ./installer.zip install_profile.json
-      '';
+    nativeBuildInputs = [
+      unzip
+      zip
+      pkgs.jq
+    ];
 
-      installPhase = ''
-        mkdir $out
-        cp install_profile.json $out/install_profile.json
-      '';
+    unpackPhase = ''
+      cp $src ./installer.zip
+      unzip -o ./installer.zip install_profile.json version.json data/unix_args.txt
+    '';
 
-      phases = [
-        "unpackPhase"
-        "installPhase"
-      ];
-    }
-  }/install_profile.json";
-  installerDependencies = installerProfile.libraries;
+    installPhase = ''
+      mkdir $out
+      cp install_profile.json $out/install_profile.json
+      cp version.json $out/version.json
+      cp data/unix_args.txt $out/unix_args.txt
+    '';
+
+    phases = [
+      "unpackPhase"
+      "installPhase"
+    ];
+  };
+
+  installerProfile = lib.importJSON "${installerData}/install_profile.json";
+  installerVersion = lib.importJSON "${installerData}/version.json";
+  installerDependencies = installerProfile.libraries ++ installerVersion.libraries;
+  installerUnixArgs = lib.readFile "${installerData}/unix_args.txt";
   installerLibrariesScript = lib.concatStringsSep "\n" (
     map (
       library:
@@ -61,7 +66,7 @@ let
       in
       ''
         mkdir -p $(dirname ${filePath})
-        cp ${libFile} ${filePath}
+        cp -n ${libFile} ${filePath}
       ''
     ) installerDependencies
   );
@@ -74,8 +79,6 @@ let
       unzip
       zip
       jre_headless
-      pkgs.tree
-      pkgs.strace
     ];
 
     runScript = ''
@@ -100,12 +103,16 @@ let
       cp ${minecraft-server}/lib/minecraft/server.jar ./install/libraries/net/minecraft/server/${gameVersion}/server-${gameVersion}.jar
 
       # Run the installer
+      ${pkgs.unzip}/bin/unzip -o ./installer.jar -d ./installer
       java -jar ./installer.jar --install-server ./install --offline
     '';
 
     installPhase = ''
       mkdir $out
       cp -r ./install/** $out/
+
+      mkdir $out/all
+      cp -r ./** $out/all/
     '';
 
     phases = [
@@ -115,13 +122,11 @@ let
   };
 
   argsFile = pkgs.writeText "neoforge-server-args" (
-    lib.replaceStrings [ "libraries" ] [ "${neoForgeServer}/libraries" ] (
-      lib.readFile "${neoForgeServer}/libraries/net/neoforged/neoforge/${loaderVersion}/unix_args.txt"
-    )
+    lib.replaceStrings [ "libraries" ] [ "${neoForgeServer}/libraries" ] installerUnixArgs
   );
 in
 (pkgs.writeShellScriptBin "minecraft-server" ''
-  exec ${lib.getExe jre_headless} ${extraJavaArgs} @${argsFile} "$@" ${extraMinecraftArgs}
+  exec ${lib.getExe jre_headless} ${extraJavaArgs} @${argsFile} ${extraMinecraftArgs}
 '')
 // rec {
   name = "${pname}-${version}";

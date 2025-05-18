@@ -1,4 +1,15 @@
 {
+  "20.1.106": {
+    "installer": {
+      "url": "https://maven.neoforged.net/releases/net/neoforged/forge/1.20.1-47.1.106/forge-1.20.1-47.1.106-installer.jar",
+      "sha256": "weocO+UyxERABO/X+cxx4VkNAQ/0SEW5Pv+6YeO9FSY="
+    },
+    "mappings": {
+      "sha1": "0b4dba049482496c507b2387a73a913230ebbd76",
+      "size": 6154195,
+      "url": "https://piston-data.mojang.com/v1/objects/0b4dba049482496c507b2387a73a913230ebbd76/server.txt"
+    }
+  },
   "20.2.86": {
     "installer": {
       "url": "https://maven.neoforged.net/releases/net/neoforged/neoforge/20.2.86/neoforge-20.2.86-installer.jar",
