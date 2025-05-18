@@ -113,11 +113,15 @@ let
       "installPhase"
     ];
   };
+
+  argsFile = pkgs.writeText "neoforge-server-args" (
+    lib.replaceStrings [ "libraries" ] [ "${neoForgeServer}/libraries" ] (
+      lib.readFile "${neoForgeServer}/libraries/net/neoforged/neoforge/${loaderVersion}/unix_args.txt"
+    )
+  );
 in
-# neoForgeServer
 (pkgs.writeShellScriptBin "minecraft-server" ''
-  ln -s ${neoForgeServer}/libraries libraries
-  exec ${lib.getExe jre_headless} ${extraJavaArgs} @libraries/net/neoforged/neoforge/${loaderVersion}/unix_args.txt "$@" ${extraMinecraftArgs}
+  exec ${lib.getExe jre_headless} ${extraJavaArgs} @${argsFile} "$@" ${extraMinecraftArgs}
 '')
 // rec {
   name = "${pname}-${version}";
